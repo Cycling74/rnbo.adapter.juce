@@ -125,6 +125,15 @@ JuceAudioProcessor::JuceAudioProcessor(
 		paramFactory = fact.get();
 	}
 
+	//get parameter desc
+	nlohmann::json paramdesc;
+	{
+		const std::string key = "parameters";
+		if (patcher_desc.contains(key) && patcher_desc[key].is_array()) {
+			paramdesc = patcher_desc[key];
+		}
+	}
+
 	int juceIndex = 0;
 	for (ParameterIndex i = 0; i < _rnboObject.getNumParameters(); i++) {
 		//create can return nullptr
@@ -132,6 +141,24 @@ JuceAudioProcessor::JuceAudioProcessor(
 		if (p) {
 			_rnboParamIndexToJuceParamIndex.insert({i, juceIndex++});
 			addParameter(p);
+#if RNBO_JUCE_PARAM_DEFAULT_NOTIFY
+			bool notify = true;
+#else
+			bool notify = false;
+#endif
+			//see if we have the notify meta
+			if (paramdesc.size() > i) {
+				const std::string meta = "meta";
+				const std::string key = "notify";
+				auto desc = paramdesc[i];
+				if (desc.contains(meta) && desc[meta].is_object() && desc[meta].contains(key) && desc[meta][key].is_boolean()) {
+					notify = desc[meta][key].get<bool>();
+				}
+			}
+
+			if (notify) {
+				_notifyingParameters.insert(i);
+			}
 		}
 	}
 
@@ -211,7 +238,7 @@ void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 		if (_isInStartup || _isSettingPresetAsync) {
 			param->setValue((float)normalizedValue);
 		}
-		else {
+		else if (_notifyingParameters.count(event.getIndex()) != 0) {
 			param->beginChangeGesture();
 			param->setValueNotifyingHost((float)normalizedValue);
 			param->endChangeGesture();
@@ -635,12 +662,19 @@ juce::AudioProcessorParameter* JuceAudioParameterFactory::create(RNBO::CoreObjec
 	}
 }
 
-AudioProcessorParameter* JuceAudioParameterFactory::createEnum(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json&) {
-	return new EnumParameter(index, info, rnboObject, versionHint);
+AudioProcessorParameter* JuceAudioParameterFactory::createEnum(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
+	return new EnumParameter(index, info, rnboObject, versionHint, automate(meta));
 }
 
-AudioProcessorParameter* JuceAudioParameterFactory::createFloat(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json&) {
-	return new FloatParameter(index, info, rnboObject, versionHint);
+AudioProcessorParameter* JuceAudioParameterFactory::createFloat(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
+	return new FloatParameter(index, info, rnboObject, versionHint, automate(meta));
+}
+
+bool JuceAudioParameterFactory::automate(const nlohmann::json& meta) {
+	const std::string key = "automate";
+	if (meta.contains(key) && meta[key].is_boolean())
+		return meta[key].get<bool>();
+	return true;
 }
 
 

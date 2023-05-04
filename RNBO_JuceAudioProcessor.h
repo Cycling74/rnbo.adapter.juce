@@ -59,6 +59,8 @@ namespace RNBO {
 			virtual juce::AudioProcessorParameter* createEnum(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
 			virtual juce::AudioProcessorParameter* createFloat(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
 
+			bool automate(const nlohmann::json& meta);
+
 			const nlohmann::json& _patcherDesc;
 			std::unordered_map<RNBO::ParameterIndex, nlohmann::json> _paramMeta;
 	};
@@ -170,12 +172,17 @@ namespace RNBO {
 		int										_currentPresetIdx;
 		bool									_isInStartup = false;
 		bool									_isSettingPresetAsync = false;
+
 		//rnbo might have some invisible parameters that aren't given to juce, so we map the rnbo index to the juce index
 		std::unordered_map<RNBO::ParameterIndex, int> _rnboParamIndexToJuceParamIndex;
+
+		//which parameters should cause host notifications when coming out of the core object
+		std::set<RNBO::ParameterIndex> _notifyingParameters;
 
 		//id -> file name
 		std::unordered_map<juce::String, juce::String> _loadedDataRefs;
 		std::mutex _loadedDataRefsMutex;
+
 
 		double _lastBPM = -1.0;
 		int _lastTimeSigNumerator = 0;
@@ -206,7 +213,7 @@ namespace RNBO {
 		using String = juce::String;
 	public:
 
-		FloatParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, int versionHint = 0)
+		FloatParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, int versionHint = 0, bool automatable = true)
 		:
 			juce::RangedAudioParameter(
 					paramIdForRNBOParam(rnboObject, index, versionHint),
@@ -214,6 +221,7 @@ namespace RNBO {
 			)
 		, _index(index)
 		, _rnboObject(rnboObject)
+		, _automatable(automatable)
 		{
 
 			if (info.unit) {
@@ -293,6 +301,8 @@ namespace RNBO {
 			return _normRange;
 		}
 
+		bool isAutomatable() const override { return _automatable; }
+
 	protected:
 		ParameterIndex			_index;
 		CoreObject&				_rnboObject;
@@ -300,6 +310,7 @@ namespace RNBO {
 		String _name;
 		float _defaultValue;
 		juce::NormalisableRange<float> _normRange;
+		bool _automatable = true;
 	};
 
 	class EnumParameter : public FloatParameter
@@ -307,8 +318,8 @@ namespace RNBO {
 		using String = juce::String;
 	public:
 
-		EnumParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, int versionHint = 0)
-		: FloatParameter(index, info, rnboObject, versionHint)
+		EnumParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, int versionHint = 0, bool automatable = true)
+		: FloatParameter(index, info, rnboObject, versionHint, automatable)
 		{
 			for (Index i = 0; i < static_cast<Index>(info.steps); i++) {
 				_enumValues.push_back(info.enumValues[i]);
