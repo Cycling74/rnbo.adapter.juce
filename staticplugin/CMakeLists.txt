@@ -28,7 +28,6 @@ set(PLUGIN_MANUFACTURER_WEBSITE "http://www.cycling74.com" CACHE STRING "Specify
 set(PLUGIN_MANUFACTURER_EMAIL "info@cycling74.com" CACHE STRING "Specify the plugin author's email address")
 
 
-
 set(PLUGIN_VST3_MAC			OFF CACHE BOOL "Export VST3 Plugin for MacOS")
 set(PLUGIN_VST3_WIN			OFF CACHE BOOL "Export VST3 Plugin for Windows")
 set(PLUGIN_VST3_LINUX 	OFF CACHE BOOL "Export VST3 Plugin for Linux")
@@ -44,6 +43,7 @@ set(PLUGIN_NEEDS_MIDI_INPUT OFF CACHE BOOL "Does the plugin need midi input?")
 set(PLUGIN_NEEDS_MIDI_OUTPUT OFF CACHE BOOL "Does the plugin need midi output?")
 set(PLUGIN_IS_MIDI_EFFECT OFF CACHE BOOL "Is this plugin a MIDI effect?")
 #set(PLUGIN_EDITOR_WANTS_KEYBOARD_FOCUS OFF CACHE BOOL "Does the editor need keyboard focus?")
+set(PLUGIN_PARAM_DEFAULT_NOTIFY OFF CACHE BOOL "Should parameter changes from inside your rnbo patch send output by default? Sometimes breaks automation.")
 
 set(CONAN_PROFILE "default" CACHE STRING "The profile to use for building conan deps, this is useful for cross compiling")
 
@@ -161,6 +161,11 @@ if (PLUGIN_IS_MIDI_EFFECT)
 	set(JUCE_IS_MIDI_EFFECT 1)
 endif()
 
+set(RNBO_JUCE_PARAM_DEFAULT_NOTIFY 0)
+if (PLUGIN_PARAM_DEFAULT_NOTIFY)
+	set(RNBO_JUCE_PARAM_DEFAULT_NOTIFY 1)
+endif()
+
 
 link_directories(${JUCEStaticPlugin_LIB_DIRS})
 
@@ -205,6 +210,7 @@ function(setup_common target_name target_type suffix bundle_extension)
 		JUCE_STATIC_PLUGIN=1
 		JUCE_DEBUG=${JUCE_DEBUG}
 		JucePlugin_IsMidiEffect=${JUCE_IS_MIDI_EFFECT}
+		RNBO_JUCE_PARAM_DEFAULT_NOTIFY=${RNBO_JUCE_PARAM_DEFAULT_NOTIFY}
 	)
 
 	if (PLUGIN_BUSES_PROPERTIES)
