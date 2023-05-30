@@ -461,32 +461,30 @@ bool JuceAudioProcessor::isBusesLayoutSupported (const BusesLayout& /*layouts*/)
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
 	auto samples = static_cast<Index>(buffer.getNumSamples());
-	wrapProcess(samples, midiMessages, [this, samples, &buffer]() {
-			_rnboObject.process(
-					buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-					buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
-					samples,
-					&_midiInput, &_midiOutput
-					);
-			}
+	auto tc = preProcess(midiMessages);
+	_rnboObject.process(
+			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			samples,
+			&_midiInput, &_midiOutput
 			);
+	postProcess(tc, midiMessages);
 }
 
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::MidiBuffer& midiMessages)
 {
 	auto samples = static_cast<Index>(buffer.getNumSamples());
-	wrapProcess(samples, midiMessages, [this, samples, &buffer]() {
-			_rnboObject.process(
-					buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-					buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
-					samples,
-					&_midiInput, &_midiOutput
-					);
-			}
+	auto tc = preProcess(midiMessages);
+	_rnboObject.process(
+			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			samples,
+			&_midiInput, &_midiOutput
 			);
+	postProcess(tc, midiMessages);
 }
 
-void JuceAudioProcessor::wrapProcess(Index numSamples, juce::MidiBuffer& midiMessages, std::function<void(void)> process) {
+TimeConverter JuceAudioProcessor::preProcess(juce::MidiBuffer& midiMessages) {
 	RNBO::MillisecondTime time = _rnboObject.getCurrentTime();
 
 	//transport
@@ -527,28 +525,27 @@ void JuceAudioProcessor::wrapProcess(Index numSamples, juce::MidiBuffer& midiMes
 		}
 	}
 
-	// fill midi input
 	TimeConverter timeConverter(_rnboObject.getSampleRate(), time);
 
+	// fill midi input
 	_midiInput.clear();  // make sure midi input starts clear
 	for (auto meta: midiMessages)
 	{
 		MillisecondTime t = timeConverter.convertSampleOffsetToMilliseconds(meta.samplePosition);
 		_midiInput.addEvent(MidiEvent(t, 0, meta.data, (Index)meta.numBytes));
 	}
-
-	process();
-
-	// consume midi output
 	midiMessages.clear();		// clear the input that we consumed above so juce doesn't get confused
+	return timeConverter;
+}
+
+void JuceAudioProcessor::postProcess(TimeConverter& timeConverter, juce::MidiBuffer& midiMessages) {
+	// consume midi output
 	if (!_midiOutput.empty()) {
-		std::for_each(_midiOutput.begin(),
-					  _midiOutput.end(),
-					  [&timeConverter, &midiMessages](const MidiEvent& ev) {
-						  int sampleNumber = static_cast<int>(timeConverter.convertMillisecondsToSampleOffset(ev.getTime()));
-						  auto midiMessage = MidiMessage(ev.getData(), (int)ev.getLength());
-						  midiMessages.addEvent(midiMessage, sampleNumber);
-					  });
+		for (const auto& ev: _midiOutput) {
+			int sampleNumber = static_cast<int>(timeConverter.convertMillisecondsToSampleOffset(ev.getTime()));
+			auto midiMessage = MidiMessage(ev.getData(), (int)ev.getLength());
+			midiMessages.addEvent(midiMessage, sampleNumber);
+		}
 		_midiOutput.clear();
 	}
 }

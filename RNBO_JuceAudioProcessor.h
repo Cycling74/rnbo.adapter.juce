@@ -13,6 +13,7 @@
 
 #include "RNBO.h"
 #include "RNBO_BinaryData.h"
+#include "RNBO_TimeConverter.h"
 #include <unordered_map>
 #include <vector>
 #include <mutex>
@@ -142,7 +143,8 @@ namespace RNBO {
 	private:
 		void loadDataRef(const juce::String refName, const juce::String fileName, std::unique_ptr<juce::AudioFormatReader> reader);
 
-		void wrapProcess(Index numSamples, juce::MidiBuffer& midiMessages, std::function<void(void)> process);
+		TimeConverter preProcess(juce::MidiBuffer& midiMessages);
+		void postProcess(TimeConverter& timeConverter, juce::MidiBuffer& midiMessages);
 
 		class SyncEventHandler : public RNBO::EventHandler
 		{
