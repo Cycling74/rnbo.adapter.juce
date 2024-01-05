@@ -256,10 +256,7 @@ namespace RNBO {
 		void setValue (float newValue) override
 		{
 			jassert(newValue >= 0 && newValue <= 1.);	// should be getting normalized values
-			float oldValue = getValue();
-			if (newValue != oldValue) {
-				_rnboObject.setParameterValueNormalized(_index, newValue);
-			}
+			_rnboObject.setParameterValueNormalized(_index, newValue);
 		}
 
 		float getDefaultValue() const override

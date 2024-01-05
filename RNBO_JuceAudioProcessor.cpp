@@ -235,10 +235,7 @@ void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 		// we need to normalize the parameter value
 		ParameterValue normalizedValue = _rnboObject.convertToNormalizedParameterValue(event.getIndex(), event.getValue());
 		const auto param = getParameters()[it->second];
-		if (_isInStartup || _isSettingPresetAsync) {
-			param->setValue((float)normalizedValue);
-		}
-		else if (_notifyingParameters.count(event.getIndex()) != 0) {
+		if (_isInStartup || _isSettingPresetAsync || _notifyingParameters.count(event.getIndex()) != 0) {
 			param->beginChangeGesture();
 			param->setValueNotifyingHost((float)normalizedValue);
 			param->endChangeGesture();
