@@ -240,9 +240,9 @@ namespace RNBO {
 		void setValue (float newValue) override
 		{
 			jassert(newValue >= 0 && newValue <= 1.);	// should be getting normalized values
-			#if RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY
-				//no need to check old value if we don't feed back
-				_rnboObject.setParameterValueNormalized(_index, newValue);
+#if RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY
+			//no need to check old value if we don't feed back
+			_rnboObject.setParameterValueNormalized(_index, newValue);
 #else
 			float oldValue = getValue();
 			if (newValue != oldValue) {
