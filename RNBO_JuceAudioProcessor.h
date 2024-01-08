@@ -22,6 +22,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 
+// param events coming out of event handlers simply notify listeners, don't actually call setValue on param
+#define RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY 1
+
 namespace moodycamel {
 template<typename T, size_t MAX_BLOCK_SIZE>
 class ReaderWriterQueue;
@@ -146,31 +149,12 @@ namespace RNBO {
 		TimeConverter preProcess(juce::MidiBuffer& midiMessages);
 		void postProcess(TimeConverter& timeConverter, juce::MidiBuffer& midiMessages);
 
-		class SyncEventHandler : public RNBO::EventHandler
-		{
-		public:
-			SyncEventHandler(JuceAudioProcessor& owner)
-			: _owner(owner)
-			{}
-
-			void eventsAvailable() override {}
-
-			void handleParameterEvent(const RNBO::ParameterEvent& event) override;
-			void handlePresetEvent(const RNBO::PresetEvent& event) override;
-
-		private:
-			bool				_isSettingPresetSync = false;
-			JuceAudioProcessor& _owner;
-		};
-
 		//==============================================================================
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceAudioProcessor)
 
 		RNBO::MidiEventList						_midiInput;
 		RNBO::MidiEventList						_midiOutput;
 		std::unique_ptr<RNBO::PresetList>	_presetList;
-		SyncEventHandler						_syncEventHandler;
-		RNBO::ParameterEventInterfaceUniquePtr	_syncParamInterface;
 		int										_currentPresetIdx;
 		bool									_isInStartup = false;
 		bool									_isSettingPresetAsync = false;
@@ -256,7 +240,15 @@ namespace RNBO {
 		void setValue (float newValue) override
 		{
 			jassert(newValue >= 0 && newValue <= 1.);	// should be getting normalized values
-			_rnboObject.setParameterValueNormalized(_index, newValue);
+			#if RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY
+				//no need to check old value if we don't feed back
+				_rnboObject.setParameterValueNormalized(_index, newValue);
+#else
+			float oldValue = getValue();
+			if (newValue != oldValue) {
+				_rnboObject.setParameterValueNormalized(_index, newValue);
+			}
+#endif
 		}
 
 		float getDefaultValue() const override

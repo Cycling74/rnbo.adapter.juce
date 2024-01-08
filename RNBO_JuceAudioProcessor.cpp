@@ -110,7 +110,6 @@ JuceAudioProcessor::JuceAudioProcessor(
 #endif
 	)
 	, Thread("fileLoadAndDealloc")
-	, _syncEventHandler(*this)
 	, _currentPresetIdx(-1)
 {
 	_dataRefCleanupQueue = make_unique<moodycamel::ReaderWriterQueue<char *, 32>>(static_cast<size_t>(32));
@@ -161,8 +160,6 @@ JuceAudioProcessor::JuceAudioProcessor(
 			}
 		}
 	}
-
-	_syncParamInterface = _rnboObject.createParameterInterface(ParameterEventInterface::NotThreadSafe, &_syncEventHandler);
 
 	//Read presets
 	try  {
@@ -235,10 +232,15 @@ void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 		// we need to normalize the parameter value
 		ParameterValue normalizedValue = _rnboObject.convertToNormalizedParameterValue(event.getIndex(), event.getValue());
 		const auto param = getParameters()[it->second];
-		if (_isInStartup || _isSettingPresetAsync || _notifyingParameters.count(event.getIndex()) != 0) {
+		if (_isSettingPresetAsync || _notifyingParameters.count(event.getIndex()) != 0) {
+			//using "internal" method to simply notify listeners
+#if RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY
+			param->sendValueChangedMessageToListeners((float)normalizedValue);
+#else
 			param->beginChangeGesture();
 			param->setValueNotifyingHost((float)normalizedValue);
 			param->endChangeGesture();
+#endif
 		}
 	}
 }
@@ -571,31 +573,13 @@ void JuceAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
 	String rnboPresetStr = String::createStringFromData (data, sizeInBytes);
 	auto rnboPreset = RNBO::convertJSONToPreset(rnboPresetStr.toStdString());
-	_rnboObject.setPresetSync(std::move(rnboPreset));
+	_rnboObject.setPreset(std::move(rnboPreset));
 }
 
 void JuceAudioProcessor::eventsAvailable()
 {
 	this->triggerAsyncUpdate();
 }
-
-void JuceAudioProcessor::SyncEventHandler::handleParameterEvent(const RNBO::ParameterEvent& event)
-{
-	if (_isSettingPresetSync) {
-		_owner.handleParameterEvent(event);
-	}
-}
-
-void JuceAudioProcessor::SyncEventHandler::handlePresetEvent(const PresetEvent& event)
-{
-	if (event.getType() == PresetEvent::SettingBegin) {
-		_isSettingPresetSync = true;
-	}
-	else if (event.getType() == PresetEvent::SettingEnd) {
-		_isSettingPresetSync = false;
-	}
-}
-
 
 JuceAudioParameterFactory::JuceAudioParameterFactory(
 		const nlohmann::json& patcherdesc
