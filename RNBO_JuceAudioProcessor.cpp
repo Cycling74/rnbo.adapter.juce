@@ -11,6 +11,7 @@
 #include "RNBO_JuceAudioProcessor.h"
 #include "RNBO_JuceAudioProcessorEditor.h"
 #include "RNBO_JuceAudioProcessorUtils.h"
+#include "RNBO_Presets.h"
 #include <readerwriterqueue/readerwriterqueue.h>
 #include <iostream>
 #include <sstream>
@@ -110,7 +111,7 @@ JuceAudioProcessor::JuceAudioProcessor(
 #endif
 	)
 	, Thread("fileLoadAndDealloc")
-	, _currentPresetIdx(-1)
+	, _currentPresetIdx(0)
 {
 	_dataRefCleanupQueue = make_unique<moodycamel::ReaderWriterQueue<char *, 32>>(static_cast<size_t>(32));
 	_dataRefLoadQueue = make_unique<moodycamel::ReaderWriterQueue<std::pair<juce::String, juce::File>, 32>>(static_cast<size_t>(32));
@@ -160,6 +161,9 @@ JuceAudioProcessor::JuceAudioProcessor(
 			}
 		}
 	}
+
+	//save initial preset
+	_initialPreset = _rnboObject.getPresetSync();
 
 	//Read presets
 	try  {
@@ -399,7 +403,7 @@ int JuceAudioProcessor::getNumPrograms()
 	if (!_presetList) {
 		return 1;
 	} else {
-		return (int) _presetList->size();
+		return (int) _presetList->size() + 1; //add "initial"
 	}
 }
 
@@ -412,19 +416,27 @@ void JuceAudioProcessor::setCurrentProgram (int index)
 {
 	if (_presetList) {
 		_currentPresetIdx = index;
-				if (index >= 0) {
-					UniquePresetPtr preset = _presetList->presetAtIndex(static_cast<size_t>(index));
-					_rnboObject.setPreset(std::move(preset));
-				}
+		UniquePresetPtr preset;
+		if (index == 0 && _initialPreset) {
+			preset = make_unique<RNBO::Preset>();
+			RNBO::copyPreset(*_initialPreset, *preset);
+		} else if (index > 0) {
+			preset = _presetList->presetAtIndex(static_cast<size_t>(index - 1));
+		}
+		if (preset) {
+			_rnboObject.setPreset(std::move(preset));
+		}
 	}
 }
 
 const juce::String JuceAudioProcessor::getProgramName (int index)
 {
-    if (!_presetList) {
+    if (!_presetList || index < 0) {
         return juce::String();
+		} else if (index == 0) {
+				return juce::String("inital");
     } else {
-        std::string name = _presetList->presetNameAtIndex((size_t)index);
+        std::string name = _presetList->presetNameAtIndex((size_t)index - 1);
         return juce::String(name);
     }
 }
