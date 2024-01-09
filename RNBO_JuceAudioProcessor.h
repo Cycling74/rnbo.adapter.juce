@@ -150,7 +150,8 @@ namespace RNBO {
 
 		RNBO::MidiEventList						_midiInput;
 		RNBO::MidiEventList						_midiOutput;
-		std::unique_ptr<RNBO::PresetList>		_presetList;
+		std::unique_ptr<RNBO::PresetList>	_presetList;
+		RNBO::ConstPresetPtr _initialPreset;
 		int										_currentPresetIdx;
 		bool									_isInStartup = false;
 
