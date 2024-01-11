@@ -53,15 +53,15 @@ namespace RNBO {
 			virtual ~JuceAudioParameterFactory() = default;
 
 			//entrypoint, may return null
-			juce::AudioProcessorParameter* create(RNBO::CoreObject& rnboObject, ParameterIndex index);
+			juce::AudioProcessorParameter* create(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index);
 
 		protected:
 			//overrideable entrypoint
-			virtual juce::AudioProcessorParameter* create(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
+			virtual juce::AudioProcessorParameter* create(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
 
 			//called by create if appropriate
-			virtual juce::AudioProcessorParameter* createEnum(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
-			virtual juce::AudioProcessorParameter* createFloat(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
+			virtual juce::AudioProcessorParameter* createEnum(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
+			virtual juce::AudioProcessorParameter* createFloat(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta);
 
 			bool automate(const nlohmann::json& meta);
 
@@ -152,6 +152,8 @@ namespace RNBO {
 		//==============================================================================
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceAudioProcessor)
 
+		RNBO::ParameterEventInterfaceUniquePtr _parameterInterface;
+
 		RNBO::MidiEventList						_midiInput;
 		RNBO::MidiEventList						_midiOutput;
 		std::unique_ptr<RNBO::PresetList>	_presetList;
@@ -182,6 +184,7 @@ namespace RNBO {
 
 		std::unique_ptr<moodycamel::ReaderWriterQueue<char *, 32>> _dataRefCleanupQueue;
 		std::unique_ptr<moodycamel::ReaderWriterQueue<std::pair<juce::String, juce::File>, 32>> _dataRefLoadQueue;
+
 	};
 
 	class DataRefUpdatedMessage : public juce::Message {
@@ -200,14 +203,14 @@ namespace RNBO {
 		using String = juce::String;
 	public:
 
-		FloatParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, int versionHint = 0, bool automatable = true)
+		FloatParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, int versionHint = 0, bool automatable = true)
 		:
 			juce::RangedAudioParameter(
 					paramIdForRNBOParam(rnboObject, index, versionHint),
 					String(rnboObject.getParameterName(index))
 			)
 		, _index(index)
-		, _rnboObject(rnboObject)
+		, _parameterInterface(parameterInterface)
 		, _automatable(automatable)
 		{
 
@@ -217,10 +220,10 @@ namespace RNBO {
 
 			_name = String(info.displayName);
 			if (_name.isEmpty()) {
-				_name = String(_rnboObject.getParameterId(_index));
+				_name = String(_parameterInterface->getParameterId(_index));
 			}
 
-			_defaultValue = static_cast<float>(_rnboObject.convertToNormalizedParameterValue(_index, info.initialValue));
+			_defaultValue = static_cast<float>(_parameterInterface->convertToNormalizedParameterValue(_index, info.initialValue));
 
 			auto min = static_cast<float>(info.min);
 			auto max = static_cast<float>(info.max);
@@ -234,7 +237,8 @@ namespace RNBO {
 		float getValue() const override
 		{
 			// getValue wants the value between 0 and 1
-			float normalizedValue = (float)_rnboObject.getParameterNormalized(_index);
+			float normalizedValue = (float)_parameterInterface->getParameterNormalized(_index);
+			// std::cout << "getValue " << normalizedValue << std::endl;
 			return normalizedValue;
 		}
 
@@ -243,11 +247,11 @@ namespace RNBO {
 			jassert(newValue >= 0 && newValue <= 1.);	// should be getting normalized values
 #if RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY
 			//no need to check old value if we don't feed back
-			_rnboObject.setParameterValueNormalized(_index, newValue);
+			_parameterInterface->setParameterValueNormalized(_index, newValue);
 #else
 			float oldValue = getValue();
 			if (newValue != oldValue) {
-				_rnboObject.setParameterValueNormalized(_index, newValue);
+				_parameterInterface->setParameterValueNormalized(_index, newValue);
 			}
 #endif
 		}
@@ -259,7 +263,7 @@ namespace RNBO {
 
 		String getParameterID() const override
 		{
-			return String(_rnboObject.getParameterId(_index));
+			return String(_parameterInterface->getParameterId(_index));
 		}
 
 		String getName (int maximumStringLength) const override
@@ -284,7 +288,7 @@ namespace RNBO {
 		String getText (float value, int maximumStringLength) const override
 		{
 			// we want to print the normalized value
-			float displayValue = (float)_rnboObject.convertFromNormalizedParameterValue(_index, value);
+			float displayValue = (float)_parameterInterface->convertFromNormalizedParameterValue(_index, value);
 			return AudioProcessorParameter::getText(displayValue, maximumStringLength);
 		}
 
@@ -297,7 +301,7 @@ namespace RNBO {
 
 	protected:
 		ParameterIndex			_index;
-		CoreObject&				_rnboObject;
+		RNBO::ParameterInterface * _parameterInterface;
 		String _unitName;
 		String _name;
 		float _defaultValue;
@@ -310,8 +314,8 @@ namespace RNBO {
 		using String = juce::String;
 	public:
 
-		EnumParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, int versionHint = 0, bool automatable = true)
-		: FloatParameter(index, info, rnboObject, versionHint, automatable)
+		EnumParameter (ParameterIndex index, const ParameterInfo& info, CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, int versionHint = 0, bool automatable = true)
+		: FloatParameter(index, info, rnboObject, parameterInterface, versionHint, automatable)
 		{
 			for (Index i = 0; i < static_cast<Index>(info.steps); i++) {
 				_enumValues.push_back(info.enumValues[i]);
@@ -321,7 +325,7 @@ namespace RNBO {
 		String getText (float value, int maximumStringLength) const override
 		{
 			// we want to print the normalized value
-			long displayValue = (long)_rnboObject.convertFromNormalizedParameterValue(_index, value);
+			long displayValue = (long)_parameterInterface->convertFromNormalizedParameterValue(_index, value);
 			String v;
 			if (displayValue >= 0 && static_cast<Index>(displayValue) < _enumValues.size()) {
 				v = _enumValues[static_cast<Index>(displayValue)];

@@ -113,6 +113,9 @@ JuceAudioProcessor::JuceAudioProcessor(
 	, Thread("fileLoadAndDealloc")
 	, _currentPresetIdx(0)
 {
+	// XXX using the "NotThreadSafe" interface for parameters so that they get updated immediately after a setPresetSync
+	_parameterInterface = _rnboObject.createParameterInterface(ParameterEventInterface::NotThreadSafe, nullptr);
+
 	_dataRefCleanupQueue = make_unique<moodycamel::ReaderWriterQueue<char *, 32>>(static_cast<size_t>(32));
 	_dataRefLoadQueue = make_unique<moodycamel::ReaderWriterQueue<std::pair<juce::String, juce::File>, 32>>(static_cast<size_t>(32));
 
@@ -137,7 +140,7 @@ JuceAudioProcessor::JuceAudioProcessor(
 	int juceIndex = 0;
 	for (ParameterIndex i = 0; i < _rnboObject.getNumParameters(); i++) {
 		//create can return nullptr
-		juce::AudioProcessorParameter * p = paramFactory->create(_rnboObject, i);
+		juce::AudioProcessorParameter * p = paramFactory->create(_rnboObject, _parameterInterface.get(), i);
 		if (p) {
 			_rnboParamIndexToJuceParamIndex.insert({i, juceIndex++});
 			addParameter(p);
@@ -229,6 +232,11 @@ const juce::String JuceAudioProcessor::getName() const
 
 void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 {
+	// filter out startup events
+	if (_isInStartup) {
+		return;
+	}
+
 	// Engine might have parameters than aren't exposed to JUCE
 	// so we need to filter out any parameter events that are not in our _rnboParamIndexToJuceParamIndex
 	auto it = _rnboParamIndexToJuceParamIndex.find(event.getIndex());
@@ -236,6 +244,7 @@ void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 		// we need to normalize the parameter value
 		ParameterValue normalizedValue = _rnboObject.convertToNormalizedParameterValue(event.getIndex(), event.getValue());
 		const auto param = getParameters()[it->second];
+
 		if (_isSettingPresetAsync || _notifyingParameters.count(event.getIndex()) != 0) {
 			//using "internal" method to simply notify listeners
 #if RNBO_JUCE_PARAM_EVENT_NOTIFY_ONLY
@@ -585,7 +594,19 @@ void JuceAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
 	String rnboPresetStr = String::createStringFromData (data, sizeInBytes);
 	auto rnboPreset = RNBO::convertJSONToPreset(rnboPresetStr.toStdString());
-	_rnboObject.setPreset(std::move(rnboPreset));
+	_rnboObject.setPresetSync(std::move(rnboPreset));
+
+	drainEvents();
+
+	// notify changes
+	for (auto& kv: _rnboParamIndexToJuceParamIndex) {
+		auto index = kv.first;
+		auto param = getParameters()[kv.second];
+		if (param) {
+			float value = static_cast<float>(_parameterInterface->getParameterNormalized(index));
+			param->sendValueChangedMessageToListeners(value);
+		}
+	}
 }
 
 void JuceAudioProcessor::eventsAvailable()
@@ -618,7 +639,7 @@ JuceAudioParameterFactory::JuceAudioParameterFactory(
 	}
 }
 
-AudioProcessorParameter* JuceAudioParameterFactory::create(RNBO::CoreObject& rnboObject, ParameterIndex index) {
+AudioProcessorParameter* JuceAudioParameterFactory::create(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface,  ParameterIndex index) {
 	ParameterInfo info;
 	rnboObject.getParameterInfo(index, &info);
 
@@ -641,23 +662,23 @@ AudioProcessorParameter* JuceAudioParameterFactory::create(RNBO::CoreObject& rnb
 			versionHint = meta[vkey].get<int>();
 		}
 	}
-	return create(rnboObject, index, info, versionHint, meta);
+	return create(rnboObject, parameterInterface, index, info, versionHint, meta);
 }
 
-juce::AudioProcessorParameter* JuceAudioParameterFactory::create(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
+juce::AudioProcessorParameter* JuceAudioParameterFactory::create(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
 	if (info.enumValues && info.steps > 0) {
-		return createEnum(rnboObject, index, info, versionHint, meta);
+		return createEnum(rnboObject, parameterInterface, index, info, versionHint, meta);
 	} else {
-		return createFloat(rnboObject, index, info, versionHint, meta);
+		return createFloat(rnboObject, parameterInterface, index, info, versionHint, meta);
 	}
 }
 
-AudioProcessorParameter* JuceAudioParameterFactory::createEnum(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
-	return new EnumParameter(index, info, rnboObject, versionHint, automate(meta));
+AudioProcessorParameter* JuceAudioParameterFactory::createEnum(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
+	return new EnumParameter(index, info, rnboObject, parameterInterface, versionHint, automate(meta));
 }
 
-AudioProcessorParameter* JuceAudioParameterFactory::createFloat(RNBO::CoreObject& rnboObject, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
-	return new FloatParameter(index, info, rnboObject, versionHint, automate(meta));
+AudioProcessorParameter* JuceAudioParameterFactory::createFloat(RNBO::CoreObject& rnboObject, RNBO::ParameterInterface * parameterInterface, ParameterIndex index, const ParameterInfo& info, int versionHint, const nlohmann::json& meta) {
+	return new FloatParameter(index, info, rnboObject, parameterInterface, versionHint, automate(meta));
 }
 
 bool JuceAudioParameterFactory::automate(const nlohmann::json& meta) {
