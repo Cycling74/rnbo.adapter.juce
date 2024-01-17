@@ -596,8 +596,6 @@ void JuceAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 	auto rnboPreset = RNBO::convertJSONToPreset(rnboPresetStr.toStdString());
 	_rnboObject.setPresetSync(std::move(rnboPreset));
 
-	drainEvents();
-
 	// notify changes
 	for (auto& kv: _rnboParamIndexToJuceParamIndex) {
 		auto index = kv.first;
