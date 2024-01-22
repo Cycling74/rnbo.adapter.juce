@@ -129,7 +129,6 @@ namespace RNBO {
 
 		void handleParameterEvent(const RNBO::ParameterEvent& event) override;
 		void handleStartupEvent(const RNBO::StartupEvent& event) override;
-		void handlePresetEvent(const RNBO::PresetEvent& event) override;
 		void handleMessageEvent(const RNBO::MessageEvent& event) override;
 
 		//background thread
@@ -146,34 +145,14 @@ namespace RNBO {
 		TimeConverter preProcess(juce::MidiBuffer& midiMessages);
 		void postProcess(TimeConverter& timeConverter, juce::MidiBuffer& midiMessages);
 
-		class SyncEventHandler : public RNBO::EventHandler
-		{
-		public:
-			SyncEventHandler(JuceAudioProcessor& owner)
-			: _owner(owner)
-			{}
-
-			void eventsAvailable() override {}
-
-			void handleParameterEvent(const RNBO::ParameterEvent& event) override;
-			void handlePresetEvent(const RNBO::PresetEvent& event) override;
-
-		private:
-			bool				_isSettingPresetSync = false;
-			JuceAudioProcessor& _owner;
-		};
-
 		//==============================================================================
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceAudioProcessor)
 
 		RNBO::MidiEventList						_midiInput;
 		RNBO::MidiEventList						_midiOutput;
-		std::unique_ptr<RNBO::PresetList>	_presetList;
-		SyncEventHandler						_syncEventHandler;
-		RNBO::ParameterEventInterfaceUniquePtr	_syncParamInterface;
+		std::unique_ptr<RNBO::PresetList>		_presetList;
 		int										_currentPresetIdx;
 		bool									_isInStartup = false;
-		bool									_isSettingPresetAsync = false;
 
 		//rnbo might have some invisible parameters that aren't given to juce, so we map the rnbo index to the juce index
 		std::unordered_map<RNBO::ParameterIndex, int> _rnboParamIndexToJuceParamIndex;
