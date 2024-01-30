@@ -43,7 +43,7 @@ set(PLUGIN_NEEDS_MIDI_INPUT OFF CACHE BOOL "Does the plugin need midi input?")
 set(PLUGIN_NEEDS_MIDI_OUTPUT OFF CACHE BOOL "Does the plugin need midi output?")
 set(PLUGIN_IS_MIDI_EFFECT OFF CACHE BOOL "Is this plugin a MIDI effect?")
 #set(PLUGIN_EDITOR_WANTS_KEYBOARD_FOCUS OFF CACHE BOOL "Does the editor need keyboard focus?")
-set(PLUGIN_PARAM_DEFAULT_NOTIFY OFF CACHE BOOL "Should parameter changes from inside your rnbo patch send output by default? Sometimes breaks automation.")
+set(PLUGIN_PARAM_DEFAULT_NOTIFY On CACHE BOOL "Should parameter changes from inside your rnbo patch send output by default? Sometimes breaks automation.")
 
 set(CONAN_PROFILE "default" CACHE STRING "The profile to use for building conan deps, this is useful for cross compiling")
 
