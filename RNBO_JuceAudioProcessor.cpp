@@ -239,7 +239,7 @@ void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 		if (_isInStartup) {
 			param->setValue((float)normalizedValue);
 		}
-		else if (_notifyingParameters.count(event.getIndex()) != 0) {
+		else if (_isSettingPresetAsync || _notifyingParameters.count(event.getIndex()) != 0) {
 			param->beginChangeGesture();
 			param->setValueNotifyingHost((float)normalizedValue);
 			param->endChangeGesture();
@@ -252,6 +252,15 @@ void JuceAudioProcessor::handleStartupEvent(const RNBO::StartupEvent& event)
 	_isInStartup = event.getType() == RNBO::StartupEvent::Begin;
 }
 
+void JuceAudioProcessor::handlePresetEvent(const RNBO::PresetEvent& event)
+{
+	if (event.getType() == RNBO::PresetEvent::SettingBegin) {
+		_isSettingPresetAsync = true;
+	}
+	else if (event.getType() == RNBO::PresetEvent::SettingEnd) {
+		_isSettingPresetAsync = false;
+	}
+}
 void JuceAudioProcessor::handleMessageEvent(const RNBO::MessageEvent& event) {
 	static MessageTag setlatency = RNBO::TAG("setlatency");
 	if (event.getTag() == setlatency) {

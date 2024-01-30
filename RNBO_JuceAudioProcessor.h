@@ -129,6 +129,7 @@ namespace RNBO {
 
 		void handleParameterEvent(const RNBO::ParameterEvent& event) override;
 		void handleStartupEvent(const RNBO::StartupEvent& event) override;
+		void handlePresetEvent(const RNBO::PresetEvent& event) override;
 		void handleMessageEvent(const RNBO::MessageEvent& event) override;
 
 		//background thread
@@ -154,6 +155,7 @@ namespace RNBO {
 		RNBO::ConstPresetPtr _initialPreset;
 		int										_currentPresetIdx;
 		bool									_isInStartup = false;
+		bool									_isSettingPresetAsync = false;
 
 		//rnbo might have some invisible parameters that aren't given to juce, so we map the rnbo index to the juce index
 		std::unordered_map<RNBO::ParameterIndex, int> _rnboParamIndexToJuceParamIndex;
