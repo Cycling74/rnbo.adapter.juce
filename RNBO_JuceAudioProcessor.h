@@ -310,8 +310,7 @@ namespace RNBO {
 
 		String getText (float value, int maximumStringLength) const override
 		{
-			// we want to print the normalized value
-			long displayValue = (long)_rnboObject.convertFromNormalizedParameterValue(_index, value);
+			auto displayValue = juce::roundToInt(_rnboObject.convertFromNormalizedParameterValue(_index, value));
 			String v;
 			if (displayValue >= 0 && static_cast<Index>(displayValue) < _enumValues.size()) {
 				v = _enumValues[static_cast<Index>(displayValue)];
