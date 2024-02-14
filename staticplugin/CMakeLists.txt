@@ -131,7 +131,7 @@ if (LINUX)
 		SETTINGS_HOST build_type=${CMAKE_BUILD_TYPE}
 		SETTINGS_BUILD build_type=${CMAKE_BUILD_TYPE}
 	)
-	find_package(alsa 1.2.10 REQUIRED)
+	find_package(ALSA 1.2.10 REQUIRED)
 
 	conan_cmake_configure(
 		REQUIRES freetype/2.13.2
@@ -146,7 +146,7 @@ if (LINUX)
 		SETTINGS_HOST build_type=${CMAKE_BUILD_TYPE}
 		SETTINGS_BUILD build_type=${CMAKE_BUILD_TYPE}
 	)
-	find_package(freetype 2.13.2 REQUIRED)
+	find_package(Freetype 2.13.2 REQUIRED)
 endif()
 
 #compute the PLUGIN_TYPE
