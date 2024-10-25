@@ -15,6 +15,7 @@
 #include <readerwriterqueue/readerwriterqueue.h>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 //TODO get rid of this
 using namespace juce;
@@ -537,10 +538,14 @@ TimeConverter JuceAudioProcessor::preProcess(juce::MidiBuffer& midiMessages) {
 
 	// fill midi input
 	_midiInput.clear();  // make sure midi input starts clear
-	for (auto meta: midiMessages)
+	for (auto m: midiMessages)
 	{
-		MillisecondTime t = timeConverter.convertSampleOffsetToMilliseconds(meta.samplePosition);
-		_midiInput.addEvent(MidiEvent(t, 0, meta.data, (Index)meta.numBytes));
+		MillisecondTime t = timeConverter.convertSampleOffsetToMilliseconds(m.samplePosition);
+		//data might be more than 3 bytes long so we chunk it up
+		const Index bytes = (Index)m.numBytes;
+		for (Index i = 0; i < bytes; i += 3) {
+			_midiInput.addEvent(MidiEvent(t, 0, m.data + i, std::min((Index)3, bytes - i)));
+		}
 	}
 	midiMessages.clear();		// clear the input that we consumed above so juce doesn't get confused
 	return timeConverter;
