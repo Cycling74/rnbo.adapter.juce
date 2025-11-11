@@ -12,6 +12,8 @@
 #include "RNBO_JuceAudioProcessorEditor.h"
 #include "RNBO_JuceAudioProcessorUtils.h"
 #include "RNBO_Presets.h"
+#include "RNBO_Profile.h"
+
 #include <readerwriterqueue/readerwriterqueue.h>
 #include <iostream>
 #include <sstream>
@@ -474,29 +476,35 @@ bool JuceAudioProcessor::supportsDoublePrecisionProcessing() const
 
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+	TRACE_DSP();
 	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
+	TRACE_EVENT_BEGIN ("dsp", "rnboObjectProcess");
 	_rnboObject.process(
 			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
 			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
 			samples,
 			&_midiInput, &_midiOutput
 			);
+	TRACE_EVENT_END ("dsp");
 	postProcess(tc, midiMessages);
 }
 
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::MidiBuffer& midiMessages)
 {
+	TRACE_DSP();
 	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
+	TRACE_EVENT_BEGIN ("dsp", "rnboObjectProcess");
 	_rnboObject.process(
 			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
 			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
 			samples,
 			&_midiInput, &_midiOutput
 			);
+	TRACE_EVENT_END ("dsp");
 	postProcess(tc, midiMessages);
 }
 
