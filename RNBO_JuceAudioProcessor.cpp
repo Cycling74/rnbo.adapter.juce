@@ -114,7 +114,15 @@ JuceAudioProcessor::JuceAudioProcessor(
 	, Thread("fileLoadAndDealloc")
 	, _currentPresetIdx(0)
 {
-	_dataRefCleanupQueue = make_unique<moodycamel::ReaderWriterQueue<char *, 32>>(static_cast<size_t>(32));
+	using CleanupQueue = moodycamel::ReaderWriterQueue<char *, 32>;
+	_dataRefCleanupQueue = std::shared_ptr<CleanupQueue>(
+		new CleanupQueue(32),
+		[](CleanupQueue* q) {
+			char* b;
+			while (q->try_dequeue(b)) delete[] b;
+			delete q;
+		}
+	);
 	_dataRefLoadQueue = make_unique<moodycamel::ReaderWriterQueue<std::pair<juce::String, juce::File>, 32>>(static_cast<size_t>(32));
 
 	_formatManager.registerBasicFormats();
@@ -207,6 +215,11 @@ JuceAudioProcessor::~JuceAudioProcessor()
 {
 	//stop audio loading/dealloc thread
 	stopThread(200);
+	// Drain any buffers the thread didn't get to before it stopped.
+	// Items enqueued by Engine::~Engine() (fired when CoreObjectHolder destructs after
+	// this destructor body) are handled by the shared_ptr's drain-on-destroy deleter.
+	char* b;
+	while (_dataRefCleanupQueue->try_dequeue(b)) delete[] b;
 }
 
 #ifdef JUCE_STATIC_PLUGIN
@@ -343,9 +356,8 @@ void JuceAudioProcessor::loadDataRef(const juce::String refName, const juce::Str
 							reinterpret_cast<char *>(data),
 							samps * sizeof(float),
 							bufferType,
-							[this](RNBO::ExternalDataId, char* d) {
-								//hold onto shared_ptr until rnbo stops using it
-								_dataRefCleanupQueue->enqueue(d);
+							[cleanupQueue = _dataRefCleanupQueue](RNBO::ExternalDataId, char* d) {
+								cleanupQueue->enqueue(d);
 							}
 					);
 					_loadedDataRefs.insert({refName, fileName});

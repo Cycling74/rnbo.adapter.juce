@@ -177,7 +177,7 @@ namespace RNBO {
     juce::AudioFormatManager _formatManager;
 		juce::MessageListener * _dataRefListener = nullptr;
 
-		std::unique_ptr<moodycamel::ReaderWriterQueue<char *, 32>> _dataRefCleanupQueue;
+		std::shared_ptr<moodycamel::ReaderWriterQueue<char *, 32>> _dataRefCleanupQueue;
 		std::unique_ptr<moodycamel::ReaderWriterQueue<std::pair<juce::String, juce::File>, 32>> _dataRefLoadQueue;
 	};
 
