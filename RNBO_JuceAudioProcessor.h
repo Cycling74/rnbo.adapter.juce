@@ -71,10 +71,10 @@ namespace RNBO {
 	 */
 	class JuceAudioProcessor :
 		public RNBO::EventHandler,
+		private juce::Thread,
 		public CoreObjectHolder,
 		public juce::AudioProcessor,
-		public juce::AsyncUpdater,
-		private juce::Thread
+		public juce::AsyncUpdater
 	{
 		using String = juce::String;
 	public:
