@@ -285,6 +285,8 @@ RNBOAudioProcessorEditor::RNBOAudioProcessorEditor(JuceAudioProcessor* const p, 
 
 RNBOAudioProcessorEditor::~RNBOAudioProcessorEditor()
 {
+	_parameterInterface.reset();
+	cancelPendingUpdate();
 }
 
 void RNBOAudioProcessorEditor::paint (Graphics& g)
