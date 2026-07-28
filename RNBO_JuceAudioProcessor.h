@@ -94,6 +94,7 @@ namespace RNBO {
 		static BusesProperties makeBusesPropertiesForRNBOObject(RNBO::CoreObject &object, const nlohmann::json& patcher_description);
 
 		bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
+		bool supportsDoublePrecisionProcessing() const override;
 
 		void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 		void processBlock (juce::AudioBuffer<double>&, juce::MidiBuffer&) override;
@@ -222,7 +223,11 @@ namespace RNBO {
 			auto min = static_cast<float>(info.min);
 			auto max = static_cast<float>(info.max);
 			if (info.steps) {
-				_normRange = juce::NormalisableRange<float>(min, max, 1.0f);
+				float interval = 1.0f;
+				if (info.steps > 1) {
+					interval = static_cast<float>((info.max - info.min) / static_cast<RNBO::number>(info.steps - 1));
+				}
+				_normRange = juce::NormalisableRange<float>(min, max, interval);
 			} else {
 				_normRange = juce::NormalisableRange<float>(min, max);
 			}

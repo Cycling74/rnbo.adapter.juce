@@ -471,8 +471,14 @@ bool JuceAudioProcessor::isBusesLayoutSupported (const BusesLayout& /*layouts*/)
 	return true;
 }
 
+bool JuceAudioProcessor::supportsDoublePrecisionProcessing() const
+{
+	return true;
+}
+
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
 	_rnboObject.process(
@@ -486,6 +492,7 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::MidiBuffer& midiMessages)
 {
+	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
 	_rnboObject.process(
