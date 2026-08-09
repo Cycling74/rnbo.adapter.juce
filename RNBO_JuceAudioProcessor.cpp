@@ -245,6 +245,9 @@ void JuceAudioProcessor::handleParameterEvent(const ParameterEvent& event)
 			param->setValueNotifyingHost((float)normalizedValue);
 			param->endChangeGesture();
 		}
+		else {
+			param->setValue((float)normalizedValue);
+		}
 	}
 }
 
