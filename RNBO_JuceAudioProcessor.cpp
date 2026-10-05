@@ -476,17 +476,55 @@ bool JuceAudioProcessor::supportsDoublePrecisionProcessing() const
 	return true;
 }
 
+#ifdef RNBO_ERROR_REPORTING
+
+void JuceAudioProcessor::reportErrors(const RNBO::ErrorInfo& err)
+{
+	auto logOnce = [](bool (&seen)[ErrorCodeSlots], RNBO::ErrorCode code, const char* kind) {
+		const size_t slot = size_t(-int(code));
+		if (slot >= ErrorCodeSlots || seen[slot]) return;
+
+		seen[slot] = true;
+		juce::Logger::outputDebugString(juce::String("RNBO ") + kind + ": " + RNBO::errorMessage(code));
+	};
+
+	if (err.error != RNBO::E_SUCCESS) {
+		logOnce(_loggedErrors, err.error, "error");
+	}
+
+	for (size_t i = 0; i < err.numWarnings(); i++) {
+		logOnce(_loggedWarnings, err.warning(i), "warning");
+	}
+}
+
+#endif // RNBO_ERROR_REPORTING
+
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
 	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
+#ifdef RNBO_ERROR_REPORTING
+	RNBO::ErrorInfo err;
+	_rnboObject.process(
+			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			samples,
+			&_midiInput, &_midiOutput,
+			&err
+			);
+	if (err.error != RNBO::E_SUCCESS) {
+		buffer.clear();
+	}
+	reportErrors(err);
+#else
 	_rnboObject.process(
 			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
 			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
 			samples,
 			&_midiInput, &_midiOutput
 			);
+#endif
 	postProcess(tc, midiMessages);
 }
 
@@ -495,12 +533,27 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::
 	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
+#ifdef RNBO_ERROR_REPORTING
+	RNBO::ErrorInfo err;
+	_rnboObject.process(
+			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			samples,
+			&_midiInput, &_midiOutput,
+			&err
+			);
+	if (err.error != RNBO::E_SUCCESS) {
+		buffer.clear();
+	}
+	reportErrors(err);
+#else
 	_rnboObject.process(
 			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
 			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
 			samples,
 			&_midiInput, &_midiOutput
 			);
+#endif
 	postProcess(tc, midiMessages);
 }
 
