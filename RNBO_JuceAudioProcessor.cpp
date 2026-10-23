@@ -493,8 +493,8 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 #ifdef RNBO_ERROR_REPORTING
 	RNBO::ErrorInfo err;
 	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfReadPointers(), static_cast<Index>(getTotalNumInputChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(getTotalNumOutputChannels()),
 			samples,
 			&_midiInput, &_midiOutput,
 			&err
@@ -504,8 +504,8 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 	}
 #else
 	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfReadPointers(), static_cast<Index>(getTotalNumInputChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(getTotalNumOutputChannels()),
 			samples,
 			&_midiInput, &_midiOutput
 			);
@@ -521,8 +521,8 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::
 #ifdef RNBO_ERROR_REPORTING
 	RNBO::ErrorInfo err;
 	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfReadPointers(), static_cast<Index>(getTotalNumInputChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(getTotalNumOutputChannels()),
 			samples,
 			&_midiInput, &_midiOutput,
 			&err
@@ -532,8 +532,8 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::
 	}
 #else
 	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfReadPointers(), static_cast<Index>(getTotalNumInputChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(getTotalNumOutputChannels()),
 			samples,
 			&_midiInput, &_midiOutput
 			);
