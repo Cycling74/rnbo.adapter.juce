@@ -490,11 +490,10 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
-#ifdef RNBO_ERROR_REPORTING
 	RNBO::ErrorInfo err;
 	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfReadPointers(), static_cast<Index>(getTotalNumInputChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(getTotalNumOutputChannels()),
 			samples,
 			&_midiInput, &_midiOutput,
 			&err
@@ -502,14 +501,6 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 	if (err.error != RNBO::E_SUCCESS) {
 		buffer.clear();
 	}
-#else
-	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
-			samples,
-			&_midiInput, &_midiOutput
-			);
-#endif
 	postProcess(tc, midiMessages);
 }
 
@@ -518,11 +509,10 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::
 	ScopedNoDenormals noDenormals;
 	auto samples = static_cast<Index>(buffer.getNumSamples());
 	auto tc = preProcess(midiMessages);
-#ifdef RNBO_ERROR_REPORTING
 	RNBO::ErrorInfo err;
 	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
+			buffer.getArrayOfReadPointers(), static_cast<Index>(getTotalNumInputChannels()),
+			buffer.getArrayOfWritePointers(), static_cast<Index>(getTotalNumOutputChannels()),
 			samples,
 			&_midiInput, &_midiOutput,
 			&err
@@ -530,14 +520,6 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::
 	if (err.error != RNBO::E_SUCCESS) {
 		buffer.clear();
 	}
-#else
-	_rnboObject.process(
-			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
-			buffer.getArrayOfWritePointers(), static_cast<Index>(buffer.getNumChannels()),
-			samples,
-			&_midiInput, &_midiOutput
-			);
-#endif
 	postProcess(tc, midiMessages);
 }
 
