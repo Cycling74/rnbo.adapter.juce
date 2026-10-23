@@ -30,6 +30,13 @@ juce::ParameterID paramIdForRNBOParam(RNBO::CoreObject& rnboObject, RNBO::Parame
 	return juce::ParameterID(s.str(), versionHint);
 }
 
+static void logToJuce(RNBO::LogLevel level, RNBO::ErrorCode, const char* message, void*)
+{
+	static const char* levelNames[] = { "debug", "info", "warning", "error" };
+	const size_t index = size_t(level) < 4 ? size_t(level) : 3;
+	juce::Logger::outputDebugString(juce::String("RNBO ") + levelNames[index] + ": " + message);
+}
+
 //==============================================================================
 
 
@@ -114,6 +121,8 @@ JuceAudioProcessor::JuceAudioProcessor(
 	, Thread("fileLoadAndDealloc")
 	, _currentPresetIdx(0)
 {
+	_rnboObject.setLogCallback(logToJuce);
+
 	_dataRefCleanupQueue = make_unique<moodycamel::ReaderWriterQueue<char *, 32>>(static_cast<size_t>(32));
 	_dataRefLoadQueue = make_unique<moodycamel::ReaderWriterQueue<std::pair<juce::String, juce::File>, 32>>(static_cast<size_t>(32));
 
@@ -476,29 +485,6 @@ bool JuceAudioProcessor::supportsDoublePrecisionProcessing() const
 	return true;
 }
 
-#ifdef RNBO_ERROR_REPORTING
-
-void JuceAudioProcessor::reportErrors(const RNBO::ErrorInfo& err)
-{
-	auto logOnce = [](bool (&seen)[ErrorCodeSlots], RNBO::ErrorCode code, const char* kind) {
-		const size_t slot = size_t(-int(code));
-		if (slot >= ErrorCodeSlots || seen[slot]) return;
-
-		seen[slot] = true;
-		juce::Logger::outputDebugString(juce::String("RNBO ") + kind + ": " + RNBO::errorMessage(code));
-	};
-
-	if (err.error != RNBO::E_SUCCESS) {
-		logOnce(_loggedErrors, err.error, "error");
-	}
-
-	for (size_t i = 0; i < err.numWarnings(); i++) {
-		logOnce(_loggedWarnings, err.warning(i), "warning");
-	}
-}
-
-#endif // RNBO_ERROR_REPORTING
-
 void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
 	ScopedNoDenormals noDenormals;
@@ -516,7 +502,6 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 	if (err.error != RNBO::E_SUCCESS) {
 		buffer.clear();
 	}
-	reportErrors(err);
 #else
 	_rnboObject.process(
 			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
@@ -545,7 +530,6 @@ void JuceAudioProcessor::processBlock (juce::AudioBuffer<double>& buffer, juce::
 	if (err.error != RNBO::E_SUCCESS) {
 		buffer.clear();
 	}
-	reportErrors(err);
 #else
 	_rnboObject.process(
 			buffer.getArrayOfReadPointers(), static_cast<Index>(buffer.getNumChannels()),
