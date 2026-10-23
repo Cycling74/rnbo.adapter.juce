@@ -147,16 +147,6 @@ namespace RNBO {
 		TimeConverter preProcess(juce::MidiBuffer& midiMessages);
 		void postProcess(TimeConverter& timeConverter, juce::MidiBuffer& midiMessages);
 
-#ifdef RNBO_ERROR_REPORTING
-		static const size_t ErrorCodeSlots = size_t(-int(RNBO::E_LAST)) + 1;
-
-		void reportErrors(const RNBO::ErrorInfo& err);
-
-		// a condition that holds repeats on every block, so each code is logged once and never again
-		bool _loggedErrors[ErrorCodeSlots] = {};
-		bool _loggedWarnings[ErrorCodeSlots] = {};
-#endif
-
 		//==============================================================================
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceAudioProcessor)
 
